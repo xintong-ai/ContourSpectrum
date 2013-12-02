@@ -19,7 +19,9 @@
 //int sample_num;
 //int non_uni_num;
 //const char* filename_data = "data/uncBrain.vol";
-const char* filename_data = "data/ex-blow_5_0_3.vtu";
+const char* filename_data = "D:/data/combustion/raw_data/jet_0032/chiContour_OHValue.vtu";
+//const char* filename_data = "data/testSpectrum.vtu";
+//const char* filename_data = "data/ex-blow_5_0_3.vtu";
 
 /*
 void ContourSpectrum::ComputeContourSpectrum(
@@ -605,6 +607,10 @@ int main(int argc, char* argv[])
 
 	ContourSpectrum<float> cs(&dm);
 	cs.GenSpectrumTriangle();
+	cs.OutputSpectrum("spectrum.txt");
+	//float testValue = 0.5;
+
+//	cout<<"The length of the value "<<testValue <<" is :"<<cs.QuerySpectrumTriangle(testValue )<<endl;
 	//contour spectrum value ranges:
 	//area_min = 99999999;
 	//area_max = -99999999;

@@ -1,6 +1,7 @@
 #ifndef CONTOUR_SPECTRUM_H
 #define CONTOUR_SPECTRUM_H
 #include "DataMgr.h"
+#include "fstream"
 template <typename T>
 class ContourSpectrum
 {
@@ -29,6 +30,8 @@ class ContourSpectrum
 public:
 	ContourSpectrum(DataMgr<T>* dm);
 	void GenSpectrumTriangle();
+	float QuerySpectrumTriangle(float v);
+	void OutputSpectrum(char* filename);
 };
 
 template <typename T>
@@ -44,6 +47,7 @@ inline spectrum2<T> triangle2spectrum(triangle<T> tr)
 {
 	spectrum2<T> ret;
 	int i0, i1, i2; //v[i0] < v[i1] < v[i2]
+	//sort
 	if(tr.v[0] < tr.v[1]) {//0<1
 		if(tr.v[1] < tr.v[2]) {
 			i0 = 0;
@@ -79,17 +83,25 @@ inline spectrum2<T> triangle2spectrum(triangle<T> tr)
 	ret.x1 = tr.v[i1];
 	ret.x2 = tr.v[i2];
 	float v2_v0 = tr.v[i2] - tr.v[i0];
-	if(0 == v2_v0)
+	if( v2_v0 <= 0)
 	{
-		
+		cout<<"v2_v0:"<<v2_v0 <<endl;
 	}
 	else
 	{
-		float3 pMid = 	((tr.v[i1] - tr.v[i0]) / v2_v0) * tr.p[i0] 
-					+	((tr.v[i2] - tr.v[i1]) / v2_v0) * tr.p[i2];
-		float l = length(pMid - tr.p[i1]);
-		ret.k1 = l / (ret.x1 - ret.x0);
-		ret.k2 = l / (ret.x2 - ret.x1);
+		float v1_v0 = ret.x1 - ret.x0;
+		float v2_v1 = ret.x2 - ret.x1;
+		//bug here!!!!
+		float3 pMid = 	(v1_v0 / v2_v0) * (tr.p[i2] - tr.p[i0]) + tr.p[i0];
+		float len = length(pMid - tr.p[i1]);
+		if(v1_v0 > 0 )
+			ret.k1 = len / v1_v0;
+		else
+			ret.k1 = 0;
+		if(v2_v1 > 0)
+			ret.k2 = len / v2_v1;
+		else
+			ret.k2 = 0;
 	}
 	return ret;
 }
@@ -101,8 +113,42 @@ void ContourSpectrum<T>::GenSpectrumTriangle()
 	
 	for(int i = 0; i < _dm->triangles.size(); i++)
 	{
-		triangle2spectrum(_dm->triangles[i]);
+		//cout<<i <<"\t";
+		_dm->allSpectrums.push_back( triangle2spectrum(_dm->triangles[i]));
 	}
 }
+
+template <typename T>
+void ContourSpectrum<T>::OutputSpectrum(char* filename)
+{
+	int nBin = 20;
+	float step = (_dm->valueMax - _dm->valueMin) / 20;
+	ofstream of(filename);
+	for(float v = _dm->valueMin; v <= _dm->valueMax ; v+= step)
+		of<<QuerySpectrumTriangle(v)<<"\t";
+	of.close();
+}
+
+template<typename T>
+float ContourSpectrum<T>::QuerySpectrumTriangle(float v)
+{
+	float lengthSum = 0;
+	for(int i = 0; i < _dm->allSpectrums.size(); i++)
+	{
+		if(_dm->allSpectrums[i].x0 <= v)
+		{
+			if(v < _dm->allSpectrums[i].x1 )
+			{
+				lengthSum += ((v - _dm->allSpectrums[i].x0) * _dm->allSpectrums[i].k1);
+			}
+			else if(v < _dm->allSpectrums[i].x2 )
+			{
+				lengthSum += ((_dm->allSpectrums[i].x2 - v) * _dm->allSpectrums[i].k2);
+			}
+		}
+	}
+	return lengthSum;
+}
+
 
 #endif

@@ -83,12 +83,56 @@ struct triangle
 //typedef struct triangle triangle;
 
 
+
 template <typename T>
-inline void ImportTriangles(vtkUnstructuredGrid* grid, vector<triangle<T>> &trias)
+class DataMgr
+{
+	in_type d_min, d_max;					//minimun data value and maximum data value
+	d_type ***f;							//voxel data
+	d_type step_x, step_y, step_z;
+
+
+public:
+	int nx,ny,nz;							//voxel counter
+	float valueMin, valueMax;
+	polynomial* allPoly;
+	vector<triangle<T>> triangles;
+	vector<spectrum2<T>> allSpectrums;
+
+	int readASCII(const char* filename);
+	int readBinary(const char* filename);
+	void SetDataRange(d_type min, d_type max);
+	void printAsciiToFile();
+	void ImportTriangles(vtkUnstructuredGrid* grid, vector<triangle<T>> &trias);
+
+	void ReadVTKUnstructuredGrid(const char* filename);
+	void OutputSpectrum();
+};
+
+template <typename T>
+void DataMgr<T>::ReadVTKUnstructuredGrid(const char* filename)
+{
+	vtkSmartPointer<vtkXMLUnstructuredGridReader> reader =
+      vtkSmartPointer<vtkXMLUnstructuredGridReader>::New();
+
+    reader->SetFileName(filename);
+    reader->Update(); // Needed because of GetScalarRange
+    vtkUnstructuredGrid* grid = reader->GetOutput();
+    
+
+
+	ImportTriangles(grid, triangles);
+}
+
+
+
+template <typename T>
+void DataMgr<T>::ImportTriangles(vtkUnstructuredGrid* grid, vector<triangle<T>> &trias)
 {
 	vtkPoints* vtkPts = grid->GetPoints();
     vtkCellArray* vtkCls = grid->GetCells();
     cout<<"nc="<<vtkCls->GetNumberOfCells()<<endl;
+	cout<<"np="<<vtkPts->GetNumberOfPoints()<<endl;
 
 	vtkPointData* ptsData = grid->GetPointData();
 	for (int i = 0; i < ptsData->GetNumberOfArrays(); i++)
@@ -98,7 +142,7 @@ inline void ImportTriangles(vtkUnstructuredGrid* grid, vector<triangle<T>> &tria
 			<< (ptsData->GetArrayName(i) ? ptsData->GetArrayName(i) : "NULL")
 			<< std::endl;
 	}
-	vtkDataArray* ptsValue = ptsData->GetArray(3);//3 is thickness
+	vtkDataArray* ptsValue = ptsData->GetArray(0);//3 is thickness
 
     vtkNew<vtkIdList> pts;
     float3 p[3];
@@ -121,42 +165,17 @@ inline void ImportTriangles(vtkUnstructuredGrid* grid, vector<triangle<T>> &tria
         triangle<T> t1(p[0], p[1], p[2], v[0], v[1], v[2]);
         trias.push_back(t1);
     }
+
+	valueMin = FLT_MAX;
+	valueMax = - FLT_MAX;
+
+	for(int ip = 0; ip < vtkPts->GetNumberOfPoints(); ip++)
+	{
+		float value = ptsValue->GetVariantValue(ip).ToDouble();
+		if(value < valueMin)
+			valueMin = value;
+		if(value > valueMax)
+			valueMax = value;
+	}
 }
-
-template <typename T>
-class DataMgr
-{
-	in_type d_min, d_max;					//minimun data value and maximum data value
-	d_type ***f;							//voxel data
-	d_type step_x, step_y, step_z;
-
-
-public:
-	int nx,ny,nz;							//voxel counter
-	polynomial* allPoly;
-	vector<triangle<T>> triangles;
-
-	int readASCII(const char* filename);
-	int readBinary(const char* filename);
-	void SetDataRange(d_type min, d_type max);
-	void printAsciiToFile();
-
-
-	void ReadVTKUnstructuredGrid(const char* filename);
-};
-
-template <typename T>
-void DataMgr<T>::ReadVTKUnstructuredGrid(const char* filename)
-{
-	vtkSmartPointer<vtkXMLUnstructuredGridReader> reader =
-      vtkSmartPointer<vtkXMLUnstructuredGridReader>::New();
-
-    reader->SetFileName(filename);
-    reader->Update(); // Needed because of GetScalarRange
-    vtkUnstructuredGrid* grid = reader->GetOutput();
-    
-	ImportTriangles<T>(grid, triangles);
-	grid->GetPointData();
-}
-
 #endif
